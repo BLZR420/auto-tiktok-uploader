@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
 
-export function middleware(req) {
-  const url = new URL(req.url);
-  const p = url.pathname;
+export function middleware(request) {
+  const { pathname } = new URL(request.url);
 
-  // Lass API-Endpunkte, statische Dateien und TikTok-Verifizierungsdateien in Ruhe
-  if (p.startsWith("/api")) return NextResponse.next();
-  if (p.includes(".")) return NextResponse.next(); // .html, .css, .js, .txt usw.
+  // API-Routen und statische Dateien (HTML, CSS, JS, TXT usw.) unberührt lassen
+  if (
+    pathname.startsWith("/api") ||
+    pathname.includes(".") ||
+    pathname.startsWith("/_next")
+  ) {
+    return NextResponse.next();
+  }
 
-  // Alles andere leite zur Startseite weiter (Single-Page-Fallback)
-  return NextResponse.rewrite(new URL("/", req.url));
+  // Alle anderen Pfade auf die Hauptseite umleiten
+  return NextResponse.rewrite(new URL("/", request.url));
 }
 
 export const config = {
