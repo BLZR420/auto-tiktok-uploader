@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 export function middleware(request) {
-  const { pathname } = new URL(request.url);
+  const url = new URL(request.url);
+  const pathname = url.pathname;
 
   // API-Routen und statische Dateien (HTML, CSS, JS, TXT usw.) unberührt lassen
   if (
