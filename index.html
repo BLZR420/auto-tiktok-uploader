@@ -71,7 +71,12 @@
   </footer>
 
   <script>
-    // --- Elements
+    // ------- KONFIGURATION (bitte DEINEN Sandbox Client Key eintragen) -------
+    const CLIENT_KEY   = "sbaw38yudfwzcabn86"; // <— HIER deinen Sandbox Client Key einsetzen
+    const REDIRECT_URI = "https://auto-tiktok-uploader.vercel.app/api/tiktok-callback";
+    const SCOPE        = "user.info.basic,video.upload,video.publish";
+
+    // ------- Elemente
     const loginBtn   = document.getElementById('loginBtn');
     const statusEl   = document.getElementById('status');
     const fileEl     = document.getElementById('file');
@@ -85,13 +90,28 @@
 
     let PUBLISH_ID = null;
 
-    // --- Login button (use your existing OAuth path; this works with your callback adding ?connected=1)
-    loginBtn.addEventListener('click', () => {
-      // If you already had a working authorize link, keep that path here:
-      window.location.href = '/tiktok-login'
-      });
+    function setMessage(text){ msg.textContent = text; }
 
-    // --- Connected status indicator via ?connected=1 (your callback already does this)
+    // ------- Login-Button: baut automatisch die richtige TikTok OAuth-URL
+    loginBtn.addEventListener('click', () => {
+      if (!CLIENT_KEY || CLIENT_KEY.includes("PASTE_")) {
+        alert("Bitte trage deinen Sandbox Client Key in index.html ein (CLIENT_KEY).");
+        return;
+      }
+      const state = Math.random().toString(36).slice(2);
+      sessionStorage.setItem("oauth_state", state);
+
+      const auth = new URL("https://www.tiktok.com/v2/auth/authorize/");
+      auth.searchParams.set("client_key", CLIENT_KEY);
+      auth.searchParams.set("scope", SCOPE);
+      auth.searchParams.set("response_type", "code");
+      auth.searchParams.set("redirect_uri", REDIRECT_URI);
+      auth.searchParams.set("state", state);
+
+      window.location.href = auth.toString();
+    });
+
+    // ------- Connected-Status (dein Callback hängt ?connected=1 an)
     if (new URLSearchParams(location.search).get('connected') === '1') {
       localStorage.setItem('tiktok_connected', '1');
       if (history.replaceState) history.replaceState({}, '', location.pathname);
@@ -100,18 +120,16 @@
       statusEl.textContent = 'Status: Connected';
     }
 
-    // Live preview
+    // ------- Live-Preview
     fileEl.addEventListener('change', () => {
       const f = fileEl.files?.[0];
       if (f) videoPrev.src = URL.createObjectURL(f);
     });
     captionEl.addEventListener('input', () => capPrev.textContent = captionEl.value);
 
-    function setMessage(text){ msg.textContent = text; }
-
-    // --- PREPARE (init + upload, but DO NOT publish)
+    // ------- PREPARE (init + upload, noch NICHT veröffentlichen)
     prepareBtn.addEventListener('click', async () => {
-      if (!fileEl.files?.[0]) { alert('Please choose a video first.'); return; }
+      if (!fileEl.files?.[0]) { alert('Bitte zuerst ein Video auswählen.'); return; }
       setMessage('Preparing upload…');
 
       const fd = new FormData();
@@ -135,9 +153,9 @@
       }
     });
 
-    // --- PUBLISH (complete with publish_id)
+    // ------- PUBLISH (complete mit publish_id)
     publishBtn.addEventListener('click', async () => {
-      if (!PUBLISH_ID) { alert('Please click “Prepare upload” first.'); return; }
+      if (!PUBLISH_ID) { alert('Bitte zuerst „Prepare upload“ ausführen.'); return; }
       setMessage('Publishing…');
 
       try {
