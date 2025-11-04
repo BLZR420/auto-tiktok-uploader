@@ -88,7 +88,7 @@
     // --- Login button (use your existing OAuth path; this works with your callback adding ?connected=1)
     loginBtn.addEventListener('click', () => {
       // If you already had a working authorize link, keep that path here:
-      window.location.href = '/authorize-with-tiktok'; // <— change this to your existing authorize path if different
+      window.location.href = 'https://www.tiktok.com/v2/auth/authorize/?client_key=sbaw38yudfwzcabn86&scope=user.info.basic,video.upload,video.publish&response_type=code&redirect_uri=https%3A%2f%2Fhook.eu2.make.com%2Fcfqx7djvanyhxdjtikprf0dhhhkpp254'; // <— change this to your existing authorize path if different
     });
 
     // --- Connected status indicator via ?connected=1 (your callback already does this)
