@@ -2,149 +2,165 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <title>Video-Publisher App · Tech-AI</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Video-Publisher App</title>
   <style>
-    :root { --bg:#0b0d10; --panel:#11141a; --muted:#a7b3c2; --acc:#7a5cff; --acc2:#27e1ff; }
-    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(140deg,#0b0d10 0%,#0f1320 100%);color:#e8ecf3}
-    .wrap{max-width:980px;margin:40px auto;padding:24px}
-    .hero{display:flex;gap:24px;align-items:center;flex-wrap:wrap;margin-bottom:24px}
-    .badge{font-size:12px;letter-spacing:.1em;color:#9aa7b6;border:1px solid #263246;padding:6px 10px;border-radius:999px}
-    h1{font-size:28px;margin:8px 0 4px} p.lead{color:#b8c2cf;margin:0 0 16px}
-    .card{background:linear-gradient(180deg,#11141a 0%,#0f1218 100%);border:1px solid #1c2432;border-radius:14px;padding:18px}
-    .grid{display:grid;gap:16px;grid-template-columns:1fr; }
-    @media(min-width:800px){ .grid{grid-template-columns:1.3fr .7fr} }
-    .btn{appearance:none;border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer}
-    .btn-acc{background:linear-gradient(90deg,var(--acc),var(--acc2));color:#051017}
-    .btn-ghost{background:#121722;border:1px solid #283349;color:#cfe6ff}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
-    input[type="file"], input[type="text"], textarea{
-      width:100%;background:#0f1420;border:1px solid #283349;border-radius:10px;color:#e8ecf3;padding:10px 12px
-    }
-    label{display:block;margin:10px 0 6px;color:#b4becb}
-    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .pill{padding:6px 10px;border-radius:999px;background:#0f1522;border:1px dashed #2a3650;color:#9fb0c8;font-size:12px}
-    .ok{color:#7affad}.warn{color:#ffcf6e}.err{color:#ff7f9f}
-    video{width:100%;border-radius:10px;border:1px solid #263246;background:#000;max-height:420px}
-    .footer{margin-top:22px;color:#8ea2b8;font-size:12px}
-    a{color:#9ecbff}
+    :root{--bg:#0b0f14;--card:#131a22;--muted:#9fb0c3;--fg:#e7f0fc;--accent:#6ae3ff}
+    *{box-sizing:border-box} body{margin:0;font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--fg)}
+    header{padding:20px 24px;border-bottom:1px solid #18212b}
+    main{display:grid;gap:20px;grid-template-columns:1.2fr .8fr;max-width:1100px;margin:30px auto;padding:0 20px}
+    .card, .aside{background:var(--card);border:1px solid #1b2632;border-radius:14px;padding:18px}
+    h1{font-size:20px;margin:0} h2{margin:0 0 14px}
+    .row{display:flex;align-items:center;gap:10px;margin:10px 0 14px}
+    label{display:block;margin:12px 0 6px;color:var(--muted);font-size:13px}
+    input[type=file], textarea, select{width:100%;background:#0e141b;border:1px solid #263243;border-radius:10px;color:var(--fg);padding:12px}
+    textarea{min-height:96px;resize:vertical}
+    .btn{appearance:none;border:1px solid #2b3950;background:#17202b;color:var(--fg);padding:10px 14px;border-radius:10px;cursor:pointer}
+    .btn.primary{background:linear-gradient(90deg,#1fa2ff,#12d8fa,#a6ffcb);color:#03111a;border:0}
+    .btn[disabled]{opacity:.55;cursor:not-allowed}
+    .status{font-size:13px;color:var(--muted)}
+    .aside video{width:100%;max-height:360px;border-radius:10px;background:#0e141b}
+    footer{max-width:1100px;margin:10px auto 40px;padding:0 20px;color:var(--muted);font-size:13px}
+    a{color:var(--accent);text-decoration:none}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="hero">
-      <div class="badge">Video-Publisher App · Tech-AI</div>
-    </div>
+  <header>
+    <h1>Video-Publisher App · Tech-AI</h1>
+  </header>
 
-    <div class="grid">
-      <!-- LEFT: Interaction -->
-      <div class="card">
-        <h1>Publish a video</h1>
-        <p class="lead">Sign in, pick a file, add a caption, then publish. You stay in full control.</p>
+  <main>
+    <section class="card">
+      <h2>Publish a video</h2>
 
-        <div class="row" style="margin:12px 0 18px">
-          <button id="btnLogin" class="btn btn-acc">Login with TikTok</button>
-          <div id="authState" class="pill">Status: <span id="authStatus">Not connected</span></div>
-        </div>
-
-        <label for="file">Video file (mp4/mov)</label>
-        <input id="file" type="file" accept="video/mp4,video/quicktime" />
-
-        <label for="caption">Caption</label>
-        <textarea id="caption" rows="3" placeholder="Write a short caption…"></textarea>
-
-        <div class="row" style="margin-top:10px">
-          <button id="btnPreview" class="btn btn-ghost">Preview</button>
-          <button id="btnPublish" class="btn btn-acc" disabled>Publish to TikTok</button>
-        </div>
-
-        <div id="log" class="footer"></div>
+      <div class="row">
+        <button id="loginBtn" class="btn">Login with TikTok</button>
+        <span id="status" class="status">Status: Not connected</span>
       </div>
 
-      <!-- RIGHT: Preview -->
-      <div class="card">
-        <h2 style="margin-top:0">Preview</h2>
-        <video id="preview" controls muted playsinline></video>
-        <div style="margin-top:8px" class="pill">Caption preview: <span id="capOut">—</span></div>
-      </div>
-    </div>
+      <label>Video file (mp4/mov)</label>
+      <input id="file" type="file" accept="video/mp4,video/quicktime" />
 
-    <div class="footer" style="margin-top:20px">
-      <a href="/privacy.html">Privacy Policy</a> · <a href="/terms.html">Terms of Service</a>
-    </div>
-  </div>
+      <label>Caption</label>
+      <textarea id="caption" placeholder="Write a short caption…"></textarea>
+
+      <label>Visibility</label>
+      <select id="visibility">
+        <option value="self" selected>Private (Sandbox)</option>
+        <option value="public" disabled>Public (after approval)</option>
+        <option value="friends" disabled>Friends</option>
+      </select>
+
+      <div class="row">
+        <button id="prepareBtn" class="btn">Prepare upload</button>
+        <button id="publishBtn" class="btn primary" disabled>Publish to TikTok</button>
+      </div>
+      <div id="msg" class="status"></div>
+    </section>
+
+    <aside class="aside">
+      <h3>Preview</h3>
+      <video id="preview" controls></video>
+      <div style="margin-top:8px"><strong>Caption preview:</strong> <span id="capPrev">—</span></div>
+    </aside>
+  </main>
+
+  <footer>
+    <a href="/privacy.html">Privacy Policy</a> ·
+    <a href="/terms.html">Terms of Service</a>
+  </footer>
 
   <script>
-    // ====== CONFIG – ersetzen ======
-    const CLIENT_KEY     = "sbaw38yudfwzcabn86";
-    const REDIRECT_URI   = "https://auto-tiktok-uploader.vercel.app/api/tiktok-callback";
-    const SCOPE          = "user.info.basic,video.upload,video.publish";
-    const PUBLISH_API    = "/api/publish"; // Serverless-Funktion, die an Make weiterleitet
+    // --- Elements
+    const loginBtn   = document.getElementById('loginBtn');
+    const statusEl   = document.getElementById('status');
+    const fileEl     = document.getElementById('file');
+    const captionEl  = document.getElementById('caption');
+    const visibility = document.getElementById('visibility');
+    const prepareBtn = document.getElementById('prepareBtn');
+    const publishBtn = document.getElementById('publishBtn');
+    const msg        = document.getElementById('msg');
+    const videoPrev  = document.getElementById('preview');
+    const capPrev    = document.getElementById('capPrev');
 
-    // ====== State detection (connected?) ======
-    const urlParams = new URLSearchParams(location.search);
-    const connected = urlParams.get("connected");
-    const authStatus = document.getElementById('authStatus');
-    if (connected === "1") authStatus.textContent = "Connected ✅";
+    let PUBLISH_ID = null;
 
-    function log(msg, cls="") {
-      const el = document.getElementById('log');
-      el.innerHTML = `<span class="${cls}">${msg}</span>`;
+    // --- Login button (use your existing OAuth path; this works with your callback adding ?connected=1)
+    loginBtn.addEventListener('click', () => {
+      // If you already had a working authorize link, keep that path here:
+      window.location.href = '/authorize-with-tiktok'; // <— change this to your existing authorize path if different
+    });
+
+    // --- Connected status indicator via ?connected=1 (your callback already does this)
+    if (new URLSearchParams(location.search).get('connected') === '1') {
+      localStorage.setItem('tiktok_connected', '1');
+      if (history.replaceState) history.replaceState({}, '', location.pathname);
+    }
+    if (localStorage.getItem('tiktok_connected') === '1') {
+      statusEl.textContent = 'Status: Connected';
     }
 
-    // ====== UI handlers ======
-    document.getElementById('btnLogin').onclick = () => {
-      // generate simple state
-      const state = Math.random().toString(36).slice(2);
-      sessionStorage.setItem("oauth_state", state);
-      const auth = new URL("https://www.tiktok.com/v2/auth/authorize/");
-      auth.searchParams.set("client_key", CLIENT_KEY);
-      auth.searchParams.set("scope", SCOPE);
-      auth.searchParams.set("response_type", "code");
-      auth.searchParams.set("redirect_uri", REDIRECT_URI);
-      auth.searchParams.set("state", state);
-      location.href = auth.toString();
-    };
-
-    const fileEl = document.getElementById('file');
-    const capEl  = document.getElementById('caption');
-    const capOut = document.getElementById('capOut');
-    const preview= document.getElementById('preview');
-    const btnPrev= document.getElementById('btnPreview');
-    const btnPub = document.getElementById('btnPublish');
-
-    btnPrev.onclick = () => {
+    // Live preview
+    fileEl.addEventListener('change', () => {
       const f = fileEl.files?.[0];
-      capOut.textContent = (capEl.value || "—").slice(0, 140);
-      if (f) {
-        preview.src = URL.createObjectURL(f);
-        preview.play().catch(()=>{});
-        btnPub.disabled = false;
-      } else {
-        log("Please choose a video file first.", "warn");
-      }
-    };
+      if (f) videoPrev.src = URL.createObjectURL(f);
+    });
+    captionEl.addEventListener('input', () => capPrev.textContent = captionEl.value);
 
-    btnPub.onclick = async () => {
-      const f = fileEl.files?.[0];
-      if (!f) return log("Please choose a video file.", "err");
-      log("Uploading…");
+    function setMessage(text){ msg.textContent = text; }
+
+    // --- PREPARE (init + upload, but DO NOT publish)
+    prepareBtn.addEventListener('click', async () => {
+      if (!fileEl.files?.[0]) { alert('Please choose a video first.'); return; }
+      setMessage('Preparing upload…');
 
       const fd = new FormData();
-      fd.append("file", f);
-      fd.append("caption", capEl.value || "");
-      // Optional privacy level: PUBLIC | FRIENDS | PRIVATE
-      fd.append("privacy_level", "PUBLIC");
+      fd.append('mode', 'prepare');
+      fd.append('file', fileEl.files[0]);
+      fd.append('caption', captionEl.value || '');
+      fd.append('visibility', visibility.value);
 
       try {
-        const res = await fetch(PUBLISH_API, { method: "POST", body: fd });
+        const res = await fetch('/api/publish', { method: 'POST', body: fd });
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "Upload failed");
-        log("Uploaded successfully ✅", "ok");
+        if (data.ok && data.publish_id) {
+          PUBLISH_ID = data.publish_id;
+          publishBtn.disabled = false;
+          setMessage('Upload prepared. Review the preview and click Publish.');
+        } else {
+          setMessage('Prepare failed: ' + (data.error || 'unknown'));
+        }
       } catch (e) {
-        log("Error: " + e.message, "err");
+        setMessage('Prepare failed: ' + e.message);
       }
-    };
+    });
+
+    // --- PUBLISH (complete with publish_id)
+    publishBtn.addEventListener('click', async () => {
+      if (!PUBLISH_ID) { alert('Please click “Prepare upload” first.'); return; }
+      setMessage('Publishing…');
+
+      try {
+        const res = await fetch('/api/publish', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({
+            mode: 'publish',
+            publish_id: PUBLISH_ID,
+            caption: captionEl.value || '',
+            visibility: visibility.value
+          })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          setMessage('Published on TikTok ✅ (Sandbox: private).');
+        } else {
+          setMessage('Publish failed: ' + (data.error || 'unknown'));
+        }
+      } catch (e) {
+        setMessage('Publish failed: ' + e.message);
+      }
+    });
   </script>
 </body>
 </html>
