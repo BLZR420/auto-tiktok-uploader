@@ -3,7 +3,7 @@
 //  - mode=publish  -> JSON (publish_id + caption + visibility) -> Make does COMPLETE
 
 export const config = {
-  runtime: 'nodejs18.x' // ensures req.formData() support on Vercel Node runtimes
+  runtime: 'nodejs' // ensures req.formData() support on Vercel Node runtimes
 };
 
 export default async function handler(req, res) {
