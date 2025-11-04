@@ -6,11 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{--bg:#0b0f14;--card:#131a22;--muted:#9fb0c3;--fg:#e7f0fc;--accent:#6ae3ff}
-    *{box-sizing:border-box} body{margin:0;font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--fg)}
+    *{box-sizing:border-box}
+    body{margin:0;font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--fg)}
     header{padding:20px 24px;border-bottom:1px solid #18212b}
     main{display:grid;gap:20px;grid-template-columns:1.2fr .8fr;max-width:1100px;margin:30px auto;padding:0 20px}
     .card,.aside{background:var(--card);border:1px solid #1b2632;border-radius:14px;padding:18px}
-    h1{font-size:20px;margin:0} h2{margin:0 0 14px}
+    h1{font-size:20px;margin:0}
+    h2{margin:0 0 14px}
     .row{display:flex;align-items:center;gap:10px;margin:10px 0 14px}
     label{display:block;margin:12px 0 6px;color:var(--muted);font-size:13px}
     input[type=file],textarea,select{width:100%;background:#0e141b;border:1px solid #263243;border-radius:10px;color:var(--fg);padding:12px}
@@ -68,12 +70,12 @@
   </footer>
 
   <script>
-    // ——— KONFIG ———
-    const CLIENT_KEY   = "sbaw38yudfwzcabn86"; // <— DEIN Sandbox Client Key
+    // --- CONFIG (nur diese Zeile anpassen) ---
+    const CLIENT_KEY   = "sbaw38yudfwzcabn86"; // <-- deinen Sandbox Client Key einsetzen
     const REDIRECT_URI = "https://auto-tiktok-uploader.vercel.app/api/tiktok-callback";
     const SCOPE        = "user.info.basic,video.upload,video.publish";
 
-    // ——— Elemente
+    // DOM
     const loginBtn   = document.getElementById('loginBtn');
     const statusEl   = document.getElementById('status');
     const fileEl     = document.getElementById('file');
@@ -84,13 +86,13 @@
     const msg        = document.getElementById('msg');
     const videoPrev  = document.getElementById('preview');
     const capPrev    = document.getElementById('capPrev');
+
     let PUBLISH_ID = null;
+    const setMessage = (t)=>{ msg.textContent = t; };
 
-    function setMessage(t){ msg.textContent = t; }
-
-    // ——— Login: baue die OAuth-URL sauber zusammen
+    // Login – exakt wie vorher, nur eingebaut in den Button
     loginBtn.addEventListener('click', () => {
-      if (!CLIENT_KEY || CLIENT_KEY.includes('PASTE_')) { alert('Bitte CLIENT_KEY eintragen.'); return; }
+      if (!CLIENT_KEY || CLIENT_KEY.includes('PASTE_')) { alert('Bitte CLIENT_KEY in index.html eintragen.'); return; }
       const state = Math.random().toString(36).slice(2);
       sessionStorage.setItem('oauth_state', state);
       const auth = new URL('https://www.tiktok.com/v2/auth/authorize/');
@@ -102,7 +104,7 @@
       location.href = auth.toString();
     });
 
-    // ——— Connected-Status (Callback hängt ?connected=1 an)
+    // Connected-Status (Callback hängt ?connected=1 an)
     if (new URLSearchParams(location.search).get('connected') === '1') {
       localStorage.setItem('tiktok_connected', '1');
       if (history.replaceState) history.replaceState({}, '', location.pathname);
@@ -111,24 +113,26 @@
       statusEl.textContent = 'Status: Connected';
     }
 
-    // ——— Preview live
+    // Preview
     fileEl.addEventListener('change', () => {
       const f = fileEl.files?.[0];
       if (f) videoPrev.src = URL.createObjectURL(f);
     });
     captionEl.addEventListener('input', () => capPrev.textContent = captionEl.value);
 
-    // ——— PREPARE (init+upload, noch NICHT veröffentlichen)
+    // Prepare (init+upload) – nutzt deine bestehende /api/publish + Make
     prepareBtn.addEventListener('click', async () => {
-      if (!fileEl.files?.[0]) { alert('Bitte Video auswählen.'); return; }
+      if (!fileEl.files?.[0]) { alert('Bitte zuerst ein Video auswählen.'); return; }
       setMessage('Preparing upload…');
+
       const fd = new FormData();
       fd.append('mode', 'prepare');
       fd.append('file', fileEl.files[0]);
       fd.append('caption', captionEl.value || '');
       fd.append('visibility', visibility.value);
+
       try {
-        const res = await fetch('/api/publish', { method: 'POST', body: fd });
+        const res = await fetch('/api/publish', { method:'POST', body: fd });
         const data = await res.json();
         if (data.ok && data.publish_id) {
           PUBLISH_ID = data.publish_id;
@@ -140,10 +144,11 @@
       } catch (e) { setMessage('Prepare failed: ' + e.message); }
     });
 
-    // ——— PUBLISH (complete mit publish_id)
+    // Publish (complete)
     publishBtn.addEventListener('click', async () => {
       if (!PUBLISH_ID) { alert('Bitte zuerst „Prepare upload“ ausführen.'); return; }
       setMessage('Publishing…');
+
       try {
         const res = await fetch('/api/publish', {
           method: 'POST',
