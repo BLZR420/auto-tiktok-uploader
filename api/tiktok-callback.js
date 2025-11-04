@@ -1,26 +1,23 @@
 export default async function handler(req, res) {
-  const { query } = req; // contains ?code=...&state=...
-
-  // 1) HIER deine NEUE Make-Webhook-URL (Production) einsetzen
-  const makeWebhook = "https://hook.eu2.make.com/f0b0veoesc03nmhyspeernqtn0ybaq8t";
-
-  // 2) Secret MUSS mit der Filter-Prüfung in Make übereinstimmen
-  const SECRET = "mySuperSecret123";
-
   try {
-    await fetch(makeWebhook, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Secret": SECRET
-      },
-      // Wir senden die TikTok-Parameter als JSON-Body
-      body: JSON.stringify(query)
-    });
+    const { query } = req;
+    // (Optional) State-Check – wenn du in Make speicherst, hier validieren
+    // const expected = ...; if (query.state !== expected) return res.status(400).send("Invalid state");
 
-    // Nach Erfolg zurück auf deine Landing-Page
-    res.redirect("/?connected=1");
-  } catch (err) {
-    res.status(500).send("Error forwarding TikTok callback.");
+    // An Make weiterreichen (nur Code+State), falls du dort Token tauschst
+    const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/cfqx7djvanyhxdjtikprf0dhhhkpp254"; // <-- ersetzen
+    try {
+      await fetch(MAKE_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(query)
+      });
+    } catch { /* Make ist optional – UI soll trotzdem weitergehen */ }
+
+    // Zurück zur Startseite mit Flag
+    res.writeHead(302, { Location: "/?connected=1" });
+    res.end();
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 }
