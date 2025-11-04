@@ -9,11 +9,11 @@
     *{box-sizing:border-box} body{margin:0;font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--fg)}
     header{padding:20px 24px;border-bottom:1px solid #18212b}
     main{display:grid;gap:20px;grid-template-columns:1.2fr .8fr;max-width:1100px;margin:30px auto;padding:0 20px}
-    .card, .aside{background:var(--card);border:1px solid #1b2632;border-radius:14px;padding:18px}
+    .card,.aside{background:var(--card);border:1px solid #1b2632;border-radius:14px;padding:18px}
     h1{font-size:20px;margin:0} h2{margin:0 0 14px}
     .row{display:flex;align-items:center;gap:10px;margin:10px 0 14px}
     label{display:block;margin:12px 0 6px;color:var(--muted);font-size:13px}
-    input[type=file], textarea, select{width:100%;background:#0e141b;border:1px solid #263243;border-radius:10px;color:var(--fg);padding:12px}
+    input[type=file],textarea,select{width:100%;background:#0e141b;border:1px solid #263243;border-radius:10px;color:var(--fg);padding:12px}
     textarea{min-height:96px;resize:vertical}
     .btn{appearance:none;border:1px solid #2b3950;background:#17202b;color:var(--fg);padding:10px 14px;border-radius:10px;cursor:pointer}
     .btn.primary{background:linear-gradient(90deg,#1fa2ff,#12d8fa,#a6ffcb);color:#03111a;border:0}
@@ -25,9 +25,7 @@
   </style>
 </head>
 <body>
-  <header>
-    <h1>Video-Publisher App · Tech-AI</h1>
-  </header>
+  <header><h1>Video-Publisher App · Tech-AI</h1></header>
 
   <main>
     <section class="card">
@@ -66,17 +64,16 @@
   </main>
 
   <footer>
-    <a href="/privacy.html">Privacy Policy</a> ·
-    <a href="/terms.html">Terms of Service</a>
+    <a href="/privacy.html">Privacy Policy</a> · <a href="/terms.html">Terms of Service</a>
   </footer>
 
   <script>
-    // ------- KONFIGURATION (bitte DEINEN Sandbox Client Key eintragen) -------
-    const CLIENT_KEY   = "sbaw38yudfwzcabn86"; // <— HIER deinen Sandbox Client Key einsetzen
+    // ——— KONFIG ———
+    const CLIENT_KEY   = "sbaw38yudfwzcabn86"; // <— DEIN Sandbox Client Key
     const REDIRECT_URI = "https://auto-tiktok-uploader.vercel.app/api/tiktok-callback";
     const SCOPE        = "user.info.basic,video.upload,video.publish";
 
-    // ------- Elemente
+    // ——— Elemente
     const loginBtn   = document.getElementById('loginBtn');
     const statusEl   = document.getElementById('status');
     const fileEl     = document.getElementById('file');
@@ -87,31 +84,25 @@
     const msg        = document.getElementById('msg');
     const videoPrev  = document.getElementById('preview');
     const capPrev    = document.getElementById('capPrev');
-
     let PUBLISH_ID = null;
 
-    function setMessage(text){ msg.textContent = text; }
+    function setMessage(t){ msg.textContent = t; }
 
-    // ------- Login-Button: baut automatisch die richtige TikTok OAuth-URL
+    // ——— Login: baue die OAuth-URL sauber zusammen
     loginBtn.addEventListener('click', () => {
-      if (!CLIENT_KEY || CLIENT_KEY.includes("PASTE_")) {
-        alert("Bitte trage deinen Sandbox Client Key in index.html ein (CLIENT_KEY).");
-        return;
-      }
+      if (!CLIENT_KEY || CLIENT_KEY.includes('PASTE_')) { alert('Bitte CLIENT_KEY eintragen.'); return; }
       const state = Math.random().toString(36).slice(2);
-      sessionStorage.setItem("oauth_state", state);
-
-      const auth = new URL("https://www.tiktok.com/v2/auth/authorize/");
-      auth.searchParams.set("client_key", CLIENT_KEY);
-      auth.searchParams.set("scope", SCOPE);
-      auth.searchParams.set("response_type", "code");
-      auth.searchParams.set("redirect_uri", REDIRECT_URI);
-      auth.searchParams.set("state", state);
-
-      window.location.href = auth.toString();
+      sessionStorage.setItem('oauth_state', state);
+      const auth = new URL('https://www.tiktok.com/v2/auth/authorize/');
+      auth.searchParams.set('client_key', CLIENT_KEY);
+      auth.searchParams.set('scope', SCOPE);
+      auth.searchParams.set('response_type', 'code');
+      auth.searchParams.set('redirect_uri', REDIRECT_URI);
+      auth.searchParams.set('state', state);
+      location.href = auth.toString();
     });
 
-    // ------- Connected-Status (dein Callback hängt ?connected=1 an)
+    // ——— Connected-Status (Callback hängt ?connected=1 an)
     if (new URLSearchParams(location.search).get('connected') === '1') {
       localStorage.setItem('tiktok_connected', '1');
       if (history.replaceState) history.replaceState({}, '', location.pathname);
@@ -120,24 +111,22 @@
       statusEl.textContent = 'Status: Connected';
     }
 
-    // ------- Live-Preview
+    // ——— Preview live
     fileEl.addEventListener('change', () => {
       const f = fileEl.files?.[0];
       if (f) videoPrev.src = URL.createObjectURL(f);
     });
     captionEl.addEventListener('input', () => capPrev.textContent = captionEl.value);
 
-    // ------- PREPARE (init + upload, noch NICHT veröffentlichen)
+    // ——— PREPARE (init+upload, noch NICHT veröffentlichen)
     prepareBtn.addEventListener('click', async () => {
-      if (!fileEl.files?.[0]) { alert('Bitte zuerst ein Video auswählen.'); return; }
+      if (!fileEl.files?.[0]) { alert('Bitte Video auswählen.'); return; }
       setMessage('Preparing upload…');
-
       const fd = new FormData();
       fd.append('mode', 'prepare');
       fd.append('file', fileEl.files[0]);
       fd.append('caption', captionEl.value || '');
       fd.append('visibility', visibility.value);
-
       try {
         const res = await fetch('/api/publish', { method: 'POST', body: fd });
         const data = await res.json();
@@ -148,16 +137,13 @@
         } else {
           setMessage('Prepare failed: ' + (data.error || 'unknown'));
         }
-      } catch (e) {
-        setMessage('Prepare failed: ' + e.message);
-      }
+      } catch (e) { setMessage('Prepare failed: ' + e.message); }
     });
 
-    // ------- PUBLISH (complete mit publish_id)
+    // ——— PUBLISH (complete mit publish_id)
     publishBtn.addEventListener('click', async () => {
       if (!PUBLISH_ID) { alert('Bitte zuerst „Prepare upload“ ausführen.'); return; }
       setMessage('Publishing…');
-
       try {
         const res = await fetch('/api/publish', {
           method: 'POST',
@@ -170,14 +156,9 @@
           })
         });
         const data = await res.json();
-        if (data.ok) {
-          setMessage('Published on TikTok ✅ (Sandbox: private).');
-        } else {
-          setMessage('Publish failed: ' + (data.error || 'unknown'));
-        }
-      } catch (e) {
-        setMessage('Publish failed: ' + e.message);
-      }
+        if (data.ok) setMessage('Published on TikTok ✅ (Sandbox: private).');
+        else setMessage('Publish failed: ' + (data.error || 'unknown'));
+      } catch (e) { setMessage('Publish failed: ' + e.message); }
     });
   </script>
 </body>
