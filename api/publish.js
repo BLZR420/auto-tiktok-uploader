@@ -1,16 +1,32 @@
-// Proxy für Prepare (multipart) & Publish (JSON) – Vercel Node Runtime
-// - multipart wird roh 1:1 weitergeleitet (Boundary bleibt intakt)
-// - JSON wird gelesen und mit mode="publish" weitergeschickt
-// - query.mode (= prepare/publish) wird zusätzlich an die Webhook-URL gehängt,
-//   damit du in Make stabil auf {{query.mode}} filtern kannst.
+// /api/publish.js — Safe Mode + Diagnose
+// Ziel: Erst sicherstellen, dass die Web-App funktioniert (ohne Make).
+// Danach MAKE_FORWARD = true setzen, um an Make zu forwarden.
 
-export const config = {
-  runtime: "nodejs"
-};
+export const config = { runtime: "nodejs" };
+
+// === Schalter ===
+const MAKE_FORWARD = false; // <-- ZUERST: false (Safe Mode). Wenn Prepare grün ist: true setzen.
+const MAKE_WEBHOOK_BASE = "https://hook.eu2.make.com/f0b0veoesc03nmhyspeernqtn0ybaq8t"; // <-- Deine B2-Webhook-URL (Szenario mit Router)
+
+// === Hilfsfunktionen ===
+async function readRaw(req) {
+  const chunks = [];
+  for await (const ch of req) chunks.push(ch);
+  return Buffer.concat(chunks);
+}
+function withQuery(base, obj) {
+  const u = new URL(base);
+  for (const [k, v] of Object.entries(obj)) u.searchParams.set(k, String(v));
+  return u.toString();
+}
+function guessFilename(ct) {
+  // nur kosmetisch; Dateiname ist für Diagnose egal
+  const ts = Date.now();
+  if (ct.includes("quicktime")) return `upload_${ts}.mov`;
+  return `upload_${ts}.mp4`;
+}
 
 export default async function handler(req, res) {
-  const MAKE_WEBHOOK_BASE = "https://hook.eu2.make.com/f0b0veoesc03nmhyspeernqtn0ybaq8t"; // <— HIER einsetzen
-
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -18,51 +34,65 @@ export default async function handler(req, res) {
 
   try {
     const ct = (req.headers["content-type"] || "").toLowerCase();
-    let targetUrl;
-    let upstream;
 
+    // ============ PREPARE (multipart/form-data) ============
     if (ct.includes("multipart/form-data")) {
-      // PREPARE: multipart
-      targetUrl = withQuery(MAKE_WEBHOOK_BASE, { mode: "prepare" });
-      upstream = await fetch(targetUrl, {
+      const raw = await readRaw(req); // NICHT parsen, nur lesen (Boundary bleibt intakt)
+      const size = raw.length;
+      const filename = guessFilename(ct);
+
+      // --- SAFE MODE: antworte immer erfolgreich, ohne Make ---
+      if (!MAKE_FORWARD) {
+        // Antwort, die dein Frontend erwartet:
+        return res.status(200).json({
+          ok: true,
+          step: "prepared",
+          publish_id: "TEST_PUBLISH_ID",
+          diag: {
+            mode: "prepare",
+            contentType: ct,
+            bytes: size,
+            filename
+          }
+        });
+      }
+
+      // --- Forward an Make (mit Query-Param mode=prepare) ---
+      const targetUrl = withQuery(MAKE_WEBHOOK_BASE, { mode: "prepare" });
+      const upstream = await fetch(targetUrl, {
         method: "POST",
         headers: { "Content-Type": req.headers["content-type"] || "" },
-        body: await readRaw(req) // als Buffer weiterleiten
+        body: raw
       });
-    } else {
-      // PUBLISH: JSON
-      const raw = (await readRaw(req)).toString("utf8");
-      let body = {};
-      try { body = JSON.parse(raw); } catch { body = {}; }
-      body.mode = "publish";
 
-      targetUrl = withQuery(MAKE_WEBHOOK_BASE, { mode: "publish" });
-      upstream = await fetch(targetUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
+      const text = await upstream.text();
+      try { return res.status(upstream.status).json(JSON.parse(text)); }
+      catch { return res.status(upstream.status).json({ ok: upstream.ok, raw: text }); }
     }
+
+    // ============ PUBLISH (JSON) ============
+    const raw = await readRaw(req);
+    let body = {};
+    try { body = JSON.parse(raw.toString("utf8")); } catch { body = {}; }
+    body.mode = "publish";
+
+    if (!MAKE_FORWARD) {
+      // SAFE MODE: Dummy-Erfolg für Publish
+      return res.status(200).json({ ok: true, step: "published", echo: body });
+    }
+
+    const targetUrl = withQuery(MAKE_WEBHOOK_BASE, { mode: "publish" });
+    const upstream = await fetch(targetUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
 
     const text = await upstream.text();
-    try {
-      return res.status(upstream.status).json(JSON.parse(text));
-    } catch {
-      return res.status(upstream.status).json({ ok: upstream.ok, raw: text });
-    }
+    try { return res.status(upstream.status).json(JSON.parse(text)); }
+    catch { return res.status(upstream.status).json({ ok: upstream.ok, raw: text }); }
+
   } catch (e) {
     return res.status(500).json({ ok: false, error: e?.message || "Proxy failed" });
   }
-}
-
-function withQuery(base, obj) {
-  const u = new URL(base);
-  for (const [k, v] of Object.entries(obj)) u.searchParams.set(k, String(v));
-  return u.toString();
-}
-
-async function readRaw(req) {
-  const chunks = [];
-  for await (const ch of req) chunks.push(ch);
-  return Buffer.concat(chunks);
 }
