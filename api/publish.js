@@ -4,7 +4,7 @@
 // Keine Regex-Validierung, kein eigenes Parsen, keine Header-Manipulation außer Content-Type-Forwarding
 
 export const config = {
-  runtime: "nodejs18.x" // wichtig für Vercel/Node 18
+  runtime: "nodejs" // wichtig für Vercel/Node 18
 };
 
 export default async function handler(req, res) {
