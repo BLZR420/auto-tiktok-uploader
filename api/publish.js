@@ -3,7 +3,7 @@
 //  mode=publish  -> JSON (publish_id + caption + visibility) -> Make COMPLETE
 
 export const config = {
-  runtime: 'nodejs18.x'  // Wichtig für Vercel – unterstützt FormData
+  runtime: 'nodejs'  // Wichtig für Vercel – unterstützt FormData
 };
 
 export default async function handler(req, res) {
