@@ -1,16 +1,14 @@
-// Robust Proxy for Prepare (multipart) and Publish (JSON)
-// - Liest multipart sauber aus, setzt fehlende Felder (mode, filename, content-type)
-// - Baut ein frisches FormData für Make (vermeidet Boundary/Encoding-Probleme)
-// - Publish (JSON) wird 1:1 weitergereicht
+// Proxy für Prepare (multipart) & Publish (JSON) – Vercel Node Runtime
+// - Body wird 1:1 gestreamt (multipart bleibt intakt)
+// - "mode" wird als Query-Parameter an die Make-Webhook-URL gehängt
+//   => In Make kannst du per {{query.mode}} sicher filtern
 
 export const config = {
-  // Node-Runtime, die req.formData() unterstützt
   runtime: "nodejs"
 };
 
 export default async function handler(req, res) {
-  // <<< HIER: Webhook-URL deines Szenario B2 eintragen >>>
-  const MAKE_WEBHOOK = "https://hook.eu2.make.com/f0b0veoesc03nmhyspeernqtn0ybaq8t";
+  const MAKE_WEBHOOK_BASE = "https://hook.eu2.make.com/f0b0veoesc03nmhyspeernqtn0ybaq8t"; // <— HIER eintragen
 
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -18,95 +16,55 @@ export default async function handler(req, res) {
   }
 
   try {
-    const ct = (req.headers["content-type"] || "").toLowerCase();
+    const ct = req.headers["content-type"] || "";
+    let targetUrl;
+    let resp;
 
-    // =========================
-    // PREPARE: multipart/form-data
-    // =========================
-    if (ct.includes("multipart/form-data")) {
-      const inForm = await req.formData();
+    // PREPARE → multipart/form-data
+    if (ct.toLowerCase().includes("multipart/form-data")) {
+      // "mode=prepare" als Query-Param anfügen (Body bleibt unverändert)
+      targetUrl = appendQuery(MAKE_WEBHOOK_BASE, { mode: "prepare" });
 
-      // Felder auslesen
-      let mode = (inForm.get("mode") || "").toString().toLowerCase();
-      let caption = (inForm.get("caption") || "").toString();
-      let visibility = ((inForm.get("visibility") || "self") + "").toLowerCase();
-      let file = inForm.get("file");
-
-      // Defaults/Normalisierung
-      if (!mode) mode = "prepare";
-      if (!["self", "public", "friends"].includes(visibility)) visibility = "self";
-
-      // Prüfen, ob Datei vorhanden ist
-      if (!file || typeof file.arrayBuffer !== "function") {
-        return res.status(400).json({ ok: false, error: "No 'file' field or not a file" });
-      }
-
-      // Blob -> Buffer und saubere File-Metadaten setzen
-      const buf = Buffer.from(await file.arrayBuffer());
-      const filename = (file.name && typeof file.name === "string" && file.name.trim())
-        ? cleanFilename(file.name)
-        : "video.mp4"; // Fallback
-      const mime = (file.type && typeof file.type === "string" && file.type.trim())
-        ? file.type
-        : "video/mp4";
-
-      // Frisches FormData für Make aufbauen (clean)
-      const outForm = new FormData();
-      outForm.set("mode", mode);
-      outForm.set("caption", caption);
-      outForm.set("visibility", visibility);
-      // Wichtig: neuen Blob mit korrektem MIME + solidem Dateinamen anlegen
-      outForm.set("file", new Blob([buf], { type: mime }), filename);
-
-      // An Make weiterreichen
-      const makeResp = await fetch(MAKE_WEBHOOK, {
+      resp = await fetch(targetUrl, {
         method: "POST",
-        body: outForm
+        headers: { "Content-Type": ct }, // Boundary muss 1:1 durch
+        body: req                          // Stream ungeöffnet weiterreichen
       });
+    } else {
+      // PUBLISH → JSON
+      const raw = await readRaw(req);
+      let body = {};
+      try { body = JSON.parse(raw); } catch { body = {}; }
+      body.mode = "publish";
 
-      const text = await makeResp.text();
-      try {
-        return res.status(makeResp.status).json(JSON.parse(text));
-      } catch {
-        return res.status(makeResp.status).json({ ok: makeResp.ok, raw: text });
-      }
+      targetUrl = appendQuery(MAKE_WEBHOOK_BASE, { mode: "publish" });
+
+      resp = await fetch(targetUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
     }
 
-    // =========================
-    // PUBLISH: JSON
-    // =========================
-    const body = await readJson(req);
-
-    // Absicherung: mode auf publish setzen
-    body.mode = "publish";
-
-    const makeResp = await fetch(MAKE_WEBHOOK, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
-
-    const text = await makeResp.text();
+    const text = await resp.text();
     try {
-      return res.status(makeResp.status).json(JSON.parse(text));
+      return res.status(resp.status).json(JSON.parse(text));
     } catch {
-      return res.status(makeResp.status).json({ ok: makeResp.ok, raw: text });
+      return res.status(resp.status).json({ ok: resp.ok, raw: text });
     }
-
-  } catch (err) {
-    return res.status(500).json({ ok: false, error: err?.message || "Server error" });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e?.message || "Proxy failed" });
   }
 }
 
-// Hilfsfunktionen
-async function readJson(req) {
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  const raw = Buffer.concat(chunks).toString("utf8") || "{}";
-  try { return JSON.parse(raw); } catch { return {}; }
+function appendQuery(base, obj) {
+  const url = new URL(base);
+  for (const [k, v] of Object.entries(obj)) url.searchParams.set(k, v);
+  return url.toString();
 }
 
-function cleanFilename(name) {
-  // Entfernt problematische Zeichen, die Make/Webhook-Parser beim Einlernen triggern können
-  return name.replace(/[^A-Za-z0-9._-]/g, "_");
+async function readRaw(req) {
+  const chunks = [];
+  for await (const ch of req) chunks.push(ch);
+  return Buffer.concat(chunks).toString("utf8");
 }
