@@ -1,19 +1,15 @@
-// Relay für deine Make-Szenarien mit zwei Modi:
-//  mode=prepare  -> multipart (file + caption + visibility) -> Make INIT + Upload
-//  mode=publish  -> JSON (publish_id + caption + visibility) -> Make COMPLETE
+// Ultra-simple Proxy: leitet den Request 1:1 an deinen Make-Webhook weiter
+// - multipart/form-data (Prepare) wird unverändert durchgestreamt
+// - JSON (Publish) ebenso
+// Keine Regex-Validierung, kein eigenes Parsen, keine Header-Manipulation außer Content-Type-Forwarding
 
 export const config = {
-  runtime: 'nodejs'  // Wichtig für Vercel – unterstützt FormData
+  runtime: "nodejs18.x" // wichtig für Vercel/Node 18
 };
 
 export default async function handler(req, res) {
-  const MAKE_WEBHOOK = "https://hook.eu2.make.com/f0b0veoesc03nmhyspeernqtn0ybaq8t"; // <<< HIER EINTRAGEN
-
-  // --- Webhook URL Validierung (EU/US/… erlaubt) ---
-  const urlOk = /^https:\/\/hook(\.[a-z0-9-]+)?\.make\.com\/[A-Za-z0-9_-]+$/.test(MAKE_WEBHOOK);
-  if (!urlOk) {
-    return res.status(500).json({ ok: false, error: "Invalid MAKE_WEBHOOK URL format" });
-  }
+  // <<< HIER DEINE NEUE WEBHOOK-URL EINFÜGEN (für PREPARE + PUBLISH, NICHT die Token-Webhook) >>>
+  const MAKE_WEBHOOK = "https://hook.eu2.make.com/f0b0veoesc03nmhyspeernqtn0ybaq8t";
 
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -21,62 +17,31 @@ export default async function handler(req, res) {
   }
 
   try {
-    const ct = (req.headers["content-type"] || "").toLowerCase();
+    // Nur den Content-Type weiterreichen (wichtig für multipart Boundary)
+    const ct = req.headers["content-type"] || "";
+    const headers = new Headers();
+    if (ct) headers.set("content-type", ct);
 
-    // ----------------------
-    // PREPARE (multipart)
-    // ----------------------
-    if (ct.includes("multipart/form-data")) {
-      const form = await req.formData();
-
-      // Override mode to be safe
-      form.set("mode", "prepare");
-
-      const makeResp = await fetch(MAKE_WEBHOOK, {
-        method: "POST",
-        body: form
-      });
-
-      const text = await makeResp.text();
-      try {
-        return res.status(makeResp.status).json(JSON.parse(text));
-      } catch {
-        return res.status(makeResp.status).json({ ok: makeResp.ok, raw: text });
-      }
-    }
-
-    // ----------------------
-    // PUBLISH (JSON)
-    // ----------------------
-    const body = await readJson(req);
-    body.mode = "publish";
-
+    // Body ungeöffnet streamen (keine formData()/JSON-Verarbeitung!)
     const makeResp = await fetch(MAKE_WEBHOOK, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      headers,
+      body: req
     });
 
+    // Antwort möglichst als JSON zurückgeben, sonst raw
     const text = await makeResp.text();
     try {
-      return res.status(makeResp.status).json(JSON.parse(text));
+      const json = JSON.parse(text);
+      return res.status(makeResp.status).json(json);
     } catch {
-      return res.status(makeResp.status).json({ ok: makeResp.ok, raw: text });
+      return res
+        .status(makeResp.status)
+        .json({ ok: makeResp.ok, status: makeResp.status, raw: text });
     }
-
   } catch (err) {
-    return res.status(500).json({ ok: false, error: err?.message || "Server error" });
-  }
-}
-
-// JSON Body einlesen (funktioniert auch bei Vercel Streaming Requests)
-async function readJson(req) {
-  const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  const raw = Buffer.concat(chunks).toString("utf8") || "{}";
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return {};
+    return res
+      .status(500)
+      .json({ ok: false, error: err?.message || "Proxy failed" });
   }
 }
