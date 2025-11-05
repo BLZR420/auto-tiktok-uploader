@@ -7,7 +7,7 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  const MAKE_WEBHOOK = "https://hook.eu2.make.com/cfqx7djvanyhxdjtikprf0dhhhkpp254"; // <-- CHANGE ME
+  const MAKE_WEBHOOK = "https://hook.eu2.make.com/f0b0veoesc03nmhyspeernqtn0ybaq8t"; // <-- CHANGE ME
 
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
